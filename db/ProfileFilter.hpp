@@ -31,5 +31,12 @@ namespace NekoGui {
             const QList<std::shared_ptr<ProxyEntity>> &src,
             const QList<std::shared_ptr<ProxyEntity>> &dst,
             QList<std::shared_ptr<ProxyEntity>> &out);
+
+        static void CommonByName(
+            const QList<std::shared_ptr<ProxyEntity>> &src,
+            const QList<std::shared_ptr<ProxyEntity>> &dst,
+            QList<std::shared_ptr<ProxyEntity>> &outSrc,
+            QList<std::shared_ptr<ProxyEntity>> &outDst
+        );
     };
 } // namespace NekoGui

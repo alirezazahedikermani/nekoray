@@ -72,4 +72,23 @@ namespace NekoGui {
         }
     }
 
+    void ProfileFilter::CommonByName(const QList<std::shared_ptr<ProxyEntity>> &src,
+                                      const QList<std::shared_ptr<ProxyEntity>> &dst,
+                                      QList<std::shared_ptr<ProxyEntity>> &outSrc,
+                                      QList<std::shared_ptr<ProxyEntity>> &outDst) {
+        QMap<QString, std::shared_ptr<ProxyEntity>> hashMap;
+
+        for (const auto &ent: src) {
+            QString key = ent->bean->name + ent->type;
+            if (!key.trimmed().isEmpty()) hashMap[key] = ent;
+        }
+        for (const auto &ent: dst) {
+            QString key = ent->bean->name + ent->type;
+            if (hashMap.contains(key)) {
+                outDst += ent;
+                outSrc += hashMap[key];
+            }
+        }
+    }
+
 } // namespace NekoGui

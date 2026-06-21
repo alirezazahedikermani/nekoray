@@ -573,8 +573,27 @@ namespace NekoGui_sub {
                 NekoGui::ProfileFilter::OnlyInSrc(out, in, only_out);
                 NekoGui::ProfileFilter::Common(in, out, update_keep, update_del, false);
 
+                // merge: match remaining only_in/only_out by name+type and update old profile's config
+                QList<std::shared_ptr<NekoGui::ProxyEntity>> merge_old;
+                QList<std::shared_ptr<NekoGui::ProxyEntity>> merge_new;
+                NekoGui::ProfileFilter::CommonByName(only_in, only_out, merge_old, merge_new);
+                for (int i = 0; i < merge_old.count(); i++) {
+                    auto old_ent = merge_old[i];
+                    auto new_ent = merge_new[i];
+                    old_ent->bean->FromJson(new_ent->bean->ToJson());
+                    old_ent->Save();
+                    update_keep.append(old_ent);
+                    update_del.append(new_ent);
+                    only_in.removeAll(old_ent);
+                    only_out.removeAll(new_ent);
+                }
+
                 QString notice_added;
                 QString notice_deleted;
+                QString notice_updated;
+                for (const auto &ent: merge_old) {
+                    notice_updated += "[~] " + ent->bean->DisplayTypeAndName() + "\n";
+                }
                 for (const auto &ent: only_out) {
                     notice_added += "[+] " + ent->bean->DisplayTypeAndName() + "\n";
                 }
@@ -586,7 +605,7 @@ namespace NekoGui_sub {
                 group->order = {};
                 for (const auto &ent: rawUpdater->updated_order) {
                     auto deleted_index = update_del.indexOf(ent);
-                    if (deleted_index > 0) {
+                    if (deleted_index >= 0) {
                         if (deleted_index >= update_keep.count()) continue; // should not happen
                         auto ent2 = update_keep[deleted_index];
                         group->order.append(ent2->id);
@@ -603,12 +622,14 @@ namespace NekoGui_sub {
                     }
                 }
 
-                change_text = "\n" + QObject::tr("Added %1 profiles:\n%2\nDeleted %3 Profiles:\n%4")
+                change_text = "\n" + QObject::tr("Added %1 profiles:\n%2\nUpdated %3 profiles:\n%4\nDeleted %5 Profiles:\n%6")
                                          .arg(only_out.length())
                                          .arg(notice_added)
+                                         .arg(merge_old.length())
+                                         .arg(notice_updated)
                                          .arg(only_in.length())
                                          .arg(notice_deleted);
-                if (only_out.length() + only_in.length() == 0) change_text = QObject::tr("Nothing");
+                if (only_out.length() + only_in.length() + merge_old.length() == 0) change_text = QObject::tr("Nothing");
             }
 
             MW_show_log("<<<<<<<< " + QObject::tr("Change of %1:").arg(group->name) + "\n" + change_text);
