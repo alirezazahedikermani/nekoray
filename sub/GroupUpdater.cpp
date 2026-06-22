@@ -598,7 +598,7 @@ namespace NekoGui_sub {
                     notice_added += "[+] " + ent->bean->DisplayTypeAndName() + "\n";
                 }
                 for (const auto &ent: only_in) {
-                    notice_deleted += "[-] " + ent->bean->DisplayTypeAndName() + "\n";
+                    notice_deleted += "[kept] " + ent->bean->DisplayTypeAndName() + "\n";
                 }
 
                 // sort according to order in remote
@@ -613,16 +613,20 @@ namespace NekoGui_sub {
                         group->order.append(ent->id);
                     }
                 }
+                // keep old profiles that are no longer in the subscription
+                for (const auto &ent: only_in) {
+                    group->order.append(ent->id);
+                }
                 group->Save();
 
-                // cleanup
-                for (const auto &ent: out_all) {
+                // cleanup duplicate new profiles that were merged into old ones
+                for (const auto &ent: update_del) {
                     if (!group->order.contains(ent->id)) {
                         NekoGui::profileManager->DeleteProfile(ent->id);
                     }
                 }
 
-                change_text = "\n" + QObject::tr("Added %1 profiles:\n%2\nUpdated %3 profiles:\n%4\nDeleted %5 Profiles:\n%6")
+                change_text = "\n" + QObject::tr("Added %1 profiles:\n%2\nUpdated %3 profiles:\n%4\nKept %5 old profiles:\n%6")
                                          .arg(only_out.length())
                                          .arg(notice_added)
                                          .arg(merge_old.length())
