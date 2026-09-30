@@ -3,6 +3,7 @@
 
 #include "db/Database.hpp"
 #include "db/ConfigBuilder.hpp"
+#include "db/ProfileFilter.hpp"
 #include "db/traffic/TrafficLooper.hpp"
 #include "rpc/gRPC.h"
 #include "ui/widget/MessageBoxTimer.h"
@@ -116,9 +117,15 @@ void MainWindow::speedtest_current_group(int mode, bool test_group) {
         w->deleteLater();
         if (full_test_flags.isEmpty()) return;
     }
+    speedtest_profiles(profiles, mode, full_test_flags);
+#endif
+}
+
+void MainWindow::speedtest_profiles(const QList<std::shared_ptr<NekoGui::ProxyEntity>> &profiles, int mode, const QStringList &full_test_flags, const std::function<void()> &finish) {
+#ifndef NKR_NO_GRPC
     speedtesting = true;
 
-    runOnNewThread([this, profiles, mode, full_test_flags]() {
+    runOnNewThread([this, profiles, mode, full_test_flags, finish]() {
         QMutex lock_write;
         QMutex lock_return;
         int threadN = NekoGui::dataStore->test_concurrent;
@@ -212,7 +219,7 @@ void MainWindow::speedtest_current_group(int mode, bool test_group) {
                         extSem.acquire();
                     }
                     //
-                    if (!rpcOK) return;
+                    if (!rpcOK) continue;
 
                     if (result.error().empty()) {
                         profile->latency = result.ms();
@@ -240,7 +247,62 @@ void MainWindow::speedtest_current_group(int mode, bool test_group) {
         lock_return.unlock();
         speedtesting = false;
         MW_show_log(QObject::tr("Speedtest finished."));
+        if (finish != nullptr) runOnUiThread(finish);
     });
+#else
+    if (finish != nullptr) finish();
+#endif
+}
+
+void MainWindow::sub_auto_update_post(int gid, const std::function<void()> &finish) {
+    auto group = NekoGui::profileManager->GetGroup(gid);
+    if (group == nullptr || group->archive) {
+        finish();
+        return;
+    }
+
+    // remove duplicates
+    QList<std::shared_ptr<NekoGui::ProxyEntity>> out;
+    QList<std::shared_ptr<NekoGui::ProxyEntity>> out_del;
+    NekoGui::ProfileFilter::Uniq(group->Profiles(), out, true, false);
+    NekoGui::ProfileFilter::OnlyInSrc_ByPointer(group->Profiles(), out, out_del);
+    for (const auto &ent: out_del) {
+        NekoGui::profileManager->DeleteProfile(ent->id);
+    }
+    MW_show_log(tr("[%1] Removed %2 duplicate item(s).").arg(group->name).arg(out_del.length()));
+    refresh_proxy_list();
+
+#ifndef NKR_NO_GRPC
+    auto profiles = group->ProfilesWithOrder();
+    if (profiles.isEmpty()) {
+        finish();
+        return;
+    }
+    if (speedtesting) {
+        MW_show_log(tr("[%1] Another speed test is running, skip testing after update.").arg(group->name));
+        finish();
+        return;
+    }
+
+    // url test, then remove unavailable
+    MW_show_log(tr("[%1] URL testing after update...").arg(group->name));
+    speedtest_profiles(profiles, libcore::UrlTest, {}, [=] {
+        auto group = NekoGui::profileManager->GetGroup(gid);
+        if (group != nullptr) {
+            int removed = 0;
+            for (const auto &profile: group->Profiles()) {
+                if (profile->latency < 0) {
+                    NekoGui::profileManager->DeleteProfile(profile->id);
+                    removed++;
+                }
+            }
+            MW_show_log(tr("[%1] Removed %2 unavailable item(s).").arg(group->name).arg(removed));
+            refresh_proxy_list();
+        }
+        finish();
+    });
+#else
+    finish();
 #endif
 }
 

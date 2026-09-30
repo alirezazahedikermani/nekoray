@@ -437,6 +437,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     };
     connect(TM_auto_update_subsctiption, &QTimer::timeout, this, [&] { UI_update_all_groups(true); });
     TM_auto_update_subsctiption_Reset_Minute(NekoGui::dataStore->sub_auto_update);
+    MW_sub_auto_update_post = [=](int gid, const std::function<void()> &finish) { sub_auto_update_post(gid, finish); };
 
     if (!NekoGui::dataStore->flag_tray) show();
 }

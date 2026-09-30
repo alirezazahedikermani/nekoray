@@ -187,6 +187,10 @@ private:
 
     void speedtest_current_group(int mode, bool test_group);
 
+    void speedtest_profiles(const QList<std::shared_ptr<NekoGui::ProxyEntity>> &profiles, int mode, const QStringList &full_test_flags, const std::function<void()> &finish = nullptr);
+
+    void sub_auto_update_post(int gid, const std::function<void()> &finish);
+
     void speedtest_current();
 
     static void stop_core_daemon();

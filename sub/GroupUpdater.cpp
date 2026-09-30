@@ -674,8 +674,15 @@ void serialUpdateSubscription(const QList<int> &groupsTabOrder, int _order, bool
 
     // Async update current group
     UI_update_all_groups_Updating = true;
-    NekoGui_sub::groupUpdater->AsyncUpdate(group->url, group->id, [=] {
-        serialUpdateSubscription(groupsTabOrder, nextOrder, onlyAllowed);
+    auto gid = group->id;
+    NekoGui_sub::groupUpdater->AsyncUpdate(group->url, gid, [=] {
+        auto next = [=] { serialUpdateSubscription(groupsTabOrder, nextOrder, onlyAllowed); };
+        // auto update: remove duplicates, url test, remove unavailable
+        if (onlyAllowed && NekoGui::dataStore->sub_auto_update_clean && MW_sub_auto_update_post != nullptr) {
+            runOnUiThread([=] { MW_sub_auto_update_post(gid, next); });
+        } else {
+            next();
+        }
     });
 }
 

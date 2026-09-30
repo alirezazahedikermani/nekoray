@@ -33,6 +33,8 @@ inline QThread *DS_cores;
 class QTimer;
 inline QTimer *TM_auto_update_subsctiption;
 inline std::function<void(int)> TM_auto_update_subsctiption_Reset_Minute;
+// run after a group is updated by the auto update timer, call finish when done
+inline std::function<void(int, const std::function<void()> &)> MW_sub_auto_update_post;
 
 // String
 
